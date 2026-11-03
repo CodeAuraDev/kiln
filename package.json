@@ -1,0 +1,36 @@
+{
+  "name": "@codeauradev/kiln",
+  "version": "1.0.5",
+  "description": "Scaffold an Angular workspace with multiple apps and a shared library. Angular CLI only.",
+  "homepage": "https://kiln.codeaura.dev",
+  "keywords": [
+    "angular",
+    "angular-cli",
+    "scaffold",
+    "monorepo",
+    "workspace",
+    "kiln",
+    "library"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "kiln": "./bin/kiln.mjs"
+  },
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CodeAuraDev/kiln"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  }
+}
