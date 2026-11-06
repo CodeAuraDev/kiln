@@ -72,18 +72,18 @@ export function execute(argv) {
   if (!first) throw new Error("Usage: kiln <name> [options]");
 
   const planned = scaffoldWorkspace(
-    {
-      name: first,
-      apps: values.apps ? values.apps.split(",").map((item) => item.trim()).filter(Boolean) : undefined,
-      library: values.lib,
-      scope: values.scope,
-      style: values.style,
-      appPrefix: values["app-prefix"],
-      libPrefix: values["lib-prefix"],
-      routing: values.routing,
-      zoneless: values.zoneless,
-    },
-    { coreSource },
+      {
+        name: first,
+        apps: values.apps ? values.apps.split(",").map((item) => item.trim()).filter(Boolean) : undefined,
+        library: values.lib,
+        scope: values.scope,
+        style: values.style,
+        appPrefix: values["app-prefix"],
+        libPrefix: values["lib-prefix"],
+        routing: values.routing,
+        zoneless: values.zoneless,
+      },
+      { coreSource },
   );
 
   const directory = resolve(values.directory ?? first);

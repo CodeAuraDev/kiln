@@ -59,15 +59,15 @@ export class ScaffoldError extends Error {
 
 export function classify(name) {
   return name
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join("");
+      .split("-")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join("");
 }
 
 function assertKebab(value, label) {
   if (typeof value !== "string" || !KEBAB.test(value)) {
     throw new ScaffoldError(
-      `${label} must be kebab-case (letters, numbers, dashes) and start with a letter.`,
+        `${label} must be kebab-case (letters, numbers, dashes) and start with a letter.`,
     );
   }
   if (RESERVED.has(value)) {
@@ -95,7 +95,7 @@ export function normalize(input) {
   assertKebab(scopeRaw, "Scope");
 
   const apps = (Array.isArray(source.apps) ? source.apps : ["web"]).map((item) =>
-    String(item).trim(),
+      String(item).trim(),
   );
   if (apps.length === 0) throw new ScaffoldError("Add at least one application.");
   apps.forEach((app) => assertKebab(app, "Application name"));
@@ -158,14 +158,18 @@ function json(value) {
 
 function composeScripts(apps, libs) {
   const appSteps = apps.map((name) => `ng build ${name}`).join(" && ");
+  const lintAll = [...libs, ...apps].map((name) => `ng lint ${name}`).join(" && ");
   const scripts = {
     ng: "ng",
     // Apps compile library source through the path map, so serve does not
     // build libraries first and does not need a separate library watch.
     start: `ng serve ${apps[0]}`,
-    build: appSteps,
+    serve: "node scripts/serve.mjs",
+    build: "node scripts/build.mjs",
+    "build:all": appSteps,
+    lint: "node scripts/lint.mjs",
+    "lint:all": lintAll,
     test: "ng test",
-    lint: [...libs, ...apps].map((name) => `ng lint ${name}`).join(" && "),
     app: "node scripts/workspace.mjs app",
     lib: "node scripts/workspace.mjs lib",
   };
@@ -173,12 +177,9 @@ function composeScripts(apps, libs) {
     const port = 4200 + index;
     const portFlag = port === 4200 ? "" : ` --port ${port}`;
     scripts[`start:${name}`] = `ng serve ${name}${portFlag}`;
-    scripts[`lint:${name}`] = `ng lint ${name}`;
   });
   libs.forEach((name) => {
-    scripts[`build:${name}`] = `ng build ${name}`;
     scripts[`watch:${name}`] = `ng build ${name} --watch --configuration development`;
-    scripts[`lint:${name}`] = `ng lint ${name}`;
   });
   return scripts;
 }
@@ -653,10 +654,10 @@ export const routes: Routes = [];
 function appConfig(options) {
   const zoneImport = options.zoneless ? "" : ", provideZoneChangeDetection";
   const routerImport = options.routing
-    ? `import { provideRouter } from '@angular/router';
+      ? `import { provideRouter } from '@angular/router';
 import { routes } from './app.routes';
 `
-    : "";
+      : "";
   const providers = ["    provideBrowserGlobalErrorListeners(),"];
   if (!options.zoneless) {
     providers.push("    provideZoneChangeDetection({ eventCoalescing: true }),");
@@ -925,7 +926,7 @@ import { Banner, WorkspaceLabel } from '${specifier}';
 }
 \`\`\`
 
-\`ng serve\` compiles that entry with the application. Each app \`tsconfig.app.json\` includes \`libs/**/*.ts\`, and the dev server excludes \`@${options.scope}/*\` from Vite prebundling, so library TypeScript, templates, and component styles rebuild with the running app. There is no separate library build while you are working. \`npm run build:${options.library}\` is only for packaging the library into \`dist/${options.library}\` when you want to publish it.
+\`ng serve\` compiles that entry with the application. Each app \`tsconfig.app.json\` includes \`libs/**/*.ts\`, and the dev server excludes \`@${options.scope}/*\` from Vite prebundling, so library TypeScript, templates, and component styles rebuild with the running app. There is no separate library build while you are working. Use \`npm run build -- ${options.library}:production\` (or the interactive \`npm run build\`) only when you want to package the library into \`dist/${options.library}\`.
 
 Component styles live next to the component (\`banner.${options.style}\` uses \`styleUrl\`). The application builder compiles those styles with the component, so a style edit reloads too. Tailwind utilities used in library templates are already in each app's scan via \`@source "../../../libs"\`.
 
@@ -967,7 +968,7 @@ Each application has \`apps/<name>/eslint.config.js\`, and each library has \`li
 '@angular-eslint/directive-selector': ['error', { type: 'attribute', prefix: '${options.libPrefix}', style: 'camelCase' }]
 \`\`\`
 
-Edit one project's file to give it a different prefix or extra rules. The others keep their own copy. \`npm run lint\` runs \`ng lint\` for every library and application.
+Edit one project's file to give it a different prefix or extra rules. The others keep their own copy. \`npm run lint\` prompts for a project; \`npm run lint:all\` lints every library and application.
 
 ## Scripts
 
@@ -976,13 +977,12 @@ Edit one project's file to give it a different prefix or extra rules. The others
 | \`npm install\` | Installs one dependency tree for the whole workspace. |
 | \`npm start\` | Serves \`${first}\` on port 4200. Library TypeScript and styles compile with the app. |
 | \`npm run start:${first}\` | Same serve target, named explicitly. |
-| \`npm run build\` | Builds every application. Libraries compile from source with each app. |
-| \`npm run build:${options.library}\` | Packages the library into \`dist/${options.library}\` for publishing. Not required to serve or build apps. |
+| \`npm run build\` | Prompts for an app and configuration, or \`npm run build -- web:production\`. Libraries compile from source with each app. |
+| \`npm run build:all\` | Builds every application. |
 | \`npm run watch:${options.library}\` | Optional packaged rebuild. Not used by \`npm start\`. |
 | \`npm test\` | Runs Vitest through \`ng test\`. Library source is compiled with the tests. |
-| \`npm run lint\` | Lints every library and application with its own ESLint config. |
-| \`npm run lint:${first}\` | Lints \`${first}\` only. |
-| \`npm run lint:${options.library}\` | Lints the \`${options.library}\` library only. |
+| \`npm run lint\` | Prompts for a project to lint, or \`npm run lint -- web\`. |
+| \`npm run lint:all\` | Lints every library and application with its own ESLint config. |
 | \`npm run app -- portal\` | Adds \`apps/portal\` and \`apps/portal/eslint.config.js\`. |
 | \`npm run lib -- ui\` | Adds \`libs/ui\`, \`libs/ui/eslint.config.js\`, and the \`@${options.scope}/ui\` path. |
 
@@ -993,7 +993,7 @@ Generated projects are standalone, zoneless: ${options.zoneless ? "yes" : "no"},
 ## Publish the library later
 
 \`\`\`bash
-npm run build:${options.library}
+npm run build -- ${options.library}:production
 cd dist/${options.library}
 npm publish
 \`\`\`
@@ -1130,6 +1130,268 @@ function fail(message) {
 `;
 }
 
+export function serveCliSource() {
+  return `#!/usr/bin/env node
+import { createInterface } from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
+import { readFileSync, existsSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { join, resolve, dirname } from "node:path";
+
+const root = findRoot(process.cwd());
+const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const apps = pkg.kiln?.apps ?? [];
+
+if (!apps.length) {
+  console.error("No apps found in package.json kiln.apps");
+  process.exit(1);
+}
+
+if (apps.length === 1) {
+  serve(apps[0], 4200);
+} else {
+  console.log("\\nSelect an application to serve:\\n");
+  apps.forEach((app, i) => console.log(\`  \${i + 1}) \${app}\`));
+  console.log("");
+
+  const rl = createInterface({ input, output });
+  const answer = await rl.question("Choice: ");
+  rl.close();
+
+  const index = parseInt(answer, 10) - 1;
+  if (index < 0 || index >= apps.length) {
+    console.error("Invalid choice");
+    process.exit(1);
+  }
+  serve(apps[index], 4200 + index);
+}
+
+function serve(name, port) {
+  const args = ["serve", name];
+  if (port !== 4200) args.push("--port", String(port));
+
+  const child = spawn("ng", args, {
+    stdio: "inherit",
+    cwd: root,
+  });
+
+  child.on("exit", (code) => process.exit(code ?? 0));
+}
+
+function findRoot(start) {
+  let current = resolve(start);
+  for (;;) {
+    if (existsSync(join(current, "angular.json")) && existsSync(join(current, "package.json"))) {
+      return current;
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      console.error("Run this from a kiln workspace.");
+      process.exit(1);
+    }
+    current = parent;
+  }
+}
+`;
+}
+
+export function buildCliSource() {
+  return `#!/usr/bin/env node
+import { createInterface } from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
+import { readFileSync, existsSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { join, resolve, dirname } from "node:path";
+
+const root = findRoot(process.cwd());
+const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const angular = JSON.parse(readFileSync(join(root, "angular.json"), "utf8"));
+const apps = pkg.kiln?.apps ?? [];
+
+const target = process.argv[2];
+
+if (!apps.length) {
+  console.error("No apps found in package.json kiln.apps");
+  process.exit(1);
+}
+
+if (target) {
+  const [app, configuration] = target.split(":");
+  if (!app || !configuration) {
+    console.error("Usage: npm run build -- <app>:<configuration>");
+    process.exit(1);
+  }
+  runBuild(app, configuration);
+} else {
+  await interactive();
+}
+
+async function interactive() {
+  console.log("\\nSelect an application:\\n");
+  apps.forEach((app, i) => console.log(\`  \${i + 1}) \${app}\`));
+  console.log("");
+
+  const rl = createInterface({ input, output });
+  const appAnswer = await rl.question("App choice: ");
+  const appIndex = parseInt(appAnswer, 10) - 1;
+  if (appIndex < 0 || appIndex >= apps.length) {
+    console.error("Invalid app");
+    process.exit(1);
+  }
+  const app = apps[appIndex];
+
+  const configs = getConfigurations(app);
+  if (!configs.length) {
+    console.error(\`No configurations found for \${app}\`);
+    process.exit(1);
+  }
+
+  console.log("\\nSelect a configuration:\\n");
+  configs.forEach((cfg, i) => console.log(\`  \${i + 1}) \${cfg}\`));
+  console.log("");
+
+  const cfgAnswer = await rl.question("Configuration choice: ");
+  rl.close();
+
+  const cfgIndex = parseInt(cfgAnswer, 10) - 1;
+  if (cfgIndex < 0 || cfgIndex >= configs.length) {
+    console.error("Invalid configuration");
+    process.exit(1);
+  }
+
+  runBuild(app, configs[cfgIndex]);
+}
+
+function getConfigurations(app) {
+  const project = angular.projects?.[app];
+  const configs = project?.architect?.build?.configurations;
+  return configs ? Object.keys(configs) : [];
+}
+
+function runBuild(name, configuration) {
+  if (!apps.includes(name)) {
+    console.error(\`Unknown app: \${name}\`);
+    console.error(\`Available: \${apps.join(", ")}\`);
+    process.exit(1);
+  }
+
+  const configs = getConfigurations(name);
+  if (!configs.includes(configuration)) {
+    console.error(\`Unknown configuration "\${configuration}" for \${name}\`);
+    console.error(\`Available: \${configs.join(", ") || "(none)"}\`);
+    process.exit(1);
+  }
+
+  const args = ["build", name, "--configuration", configuration];
+  console.log(\`\\n> ng \${args.join(" ")}\\n\`);
+
+  const child = spawn("ng", args, {
+    stdio: "inherit",
+    cwd: root,
+  });
+
+  child.on("exit", (code) => process.exit(code ?? 0));
+}
+
+function findRoot(start) {
+  let current = resolve(start);
+  for (;;) {
+    if (existsSync(join(current, "angular.json")) && existsSync(join(current, "package.json"))) {
+      return current;
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      console.error("Run this from a kiln workspace.");
+      process.exit(1);
+    }
+    current = parent;
+  }
+}
+`;
+}
+
+export function lintCliSource() {
+  return `#!/usr/bin/env node
+import { createInterface } from "node:readline/promises";
+import { stdin as input, stdout as output } from "node:process";
+import { readFileSync, existsSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { join, resolve, dirname } from "node:path";
+
+const root = findRoot(process.cwd());
+const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+const apps = pkg.kiln?.apps ?? [];
+const libs = pkg.kiln?.libs ?? [];
+const projects = [...apps, ...libs];
+
+const target = process.argv[2];
+
+if (!projects.length) {
+  console.error("No apps or libraries found in package.json kiln.apps / kiln.libs");
+  process.exit(1);
+}
+
+if (target) {
+  runLint(target);
+} else {
+  await interactive();
+}
+
+async function interactive() {
+  console.log("\\nSelect a project to lint:\\n");
+  projects.forEach((name, i) => {
+    const kind = apps.includes(name) ? "app" : "lib";
+    console.log(\`  \${i + 1}) \${name} (\${kind})\`);
+  });
+  console.log("");
+
+  const rl = createInterface({ input, output });
+  const answer = await rl.question("Choice: ");
+  rl.close();
+
+  const index = parseInt(answer, 10) - 1;
+  if (index < 0 || index >= projects.length) {
+    console.error("Invalid choice");
+    process.exit(1);
+  }
+  runLint(projects[index]);
+}
+
+function runLint(name) {
+  if (!projects.includes(name)) {
+    console.error(\`Unknown project: \${name}\`);
+    console.error(\`Available: \${projects.join(", ")}\`);
+    process.exit(1);
+  }
+
+  const args = ["lint", name];
+  console.log(\`\\n> ng \${args.join(" ")}\\n\`);
+
+  const child = spawn("ng", args, {
+    stdio: "inherit",
+    cwd: root,
+  });
+
+  child.on("exit", (code) => process.exit(code ?? 0));
+}
+
+function findRoot(start) {
+  let current = resolve(start);
+  for (;;) {
+    if (existsSync(join(current, "angular.json")) && existsSync(join(current, "package.json"))) {
+      return current;
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      console.error("Run this from a kiln workspace.");
+      process.exit(1);
+    }
+    current = parent;
+  }
+}
+`;
+}
+
 /**
  * @param {Record<string, unknown>} input
  * @param {{ coreSource?: string }} [extras]
@@ -1139,6 +1401,9 @@ export function scaffoldWorkspace(input, extras = {}) {
   const files = {
     ...rootFiles(options),
     "scripts/workspace.mjs": workspaceCliSource(),
+    "scripts/serve.mjs": serveCliSource(),
+    "scripts/build.mjs": buildCliSource(),
+    "scripts/lint.mjs": lintCliSource(),
   };
   for (const app of options.apps) Object.assign(files, appFiles(app, { ...options, name: app }));
   for (const lib of options.libs) {
@@ -1146,11 +1411,11 @@ export function scaffoldWorkspace(input, extras = {}) {
   }
   if (extras.coreSource) {
     const banner =
-      "// Snapshot of kiln. Powers `npm run app` and `npm run lib`\n" +
-      "// inside this workspace, with no extra install.\n";
+        "// Snapshot of kiln. Powers `npm run app` and `npm run lib`\n" +
+        "// inside this workspace, with no extra install.\n";
     const source = extras.coreSource.startsWith("// Snapshot")
-      ? extras.coreSource
-      : banner + extras.coreSource;
+        ? extras.coreSource
+        : banner + extras.coreSource;
     files["scripts/kiln-core.mjs"] = source.endsWith("\n") ? source : `${source}\n`;
   }
   return { files, options, command: commandLine(options) };
@@ -1174,7 +1439,7 @@ function loadWorkspace(existing) {
   }
   if (!pkg.kiln || pkg.kiln.layout !== "apps-libs") {
     throw new ScaffoldError(
-      "This directory is not a kiln workspace (package.json is missing kiln.layout).",
+        "This directory is not a kiln workspace (package.json is missing kiln.layout).",
     );
   }
   const kiln = pkg.kiln;
@@ -1231,9 +1496,6 @@ export function addApplication(existing, name) {
   ensureTailwind(pkg);
   ensureEslint(pkg);
   pkg.scripts[`start:${name}`] = `ng serve ${name} --port ${4200 + kiln.apps.length - 1}`;
-  pkg.scripts[`lint:${name}`] = `ng lint ${name}`;
-  pkg.scripts.build = ensureScriptStep(pkg.scripts.build, `ng build ${name}`, "append");
-  pkg.scripts.lint = ensureScriptStep(pkg.scripts.lint, `ng lint ${name}`, "append");
   rememberReference(tsconfigJson, `./apps/${name}/tsconfig.app.json`);
   rememberReference(tsconfigJson, `./apps/${name}/tsconfig.spec.json`);
 
@@ -1275,10 +1537,7 @@ export function addLibrary(existing, name) {
   ensureMaterial(pkg);
   ensureTailwind(pkg);
   ensureEslint(pkg);
-  pkg.scripts[`build:${name}`] = `ng build ${name}`;
   pkg.scripts[`watch:${name}`] = `ng build ${name} --watch --configuration development`;
-  pkg.scripts[`lint:${name}`] = `ng lint ${name}`;
-  pkg.scripts.lint = ensureScriptStep(pkg.scripts.lint, `ng lint ${name}`, "prepend");
   for (const appName of kiln.apps) {
     const project = angular.projects[appName];
     if (project?.projectType === "application") {

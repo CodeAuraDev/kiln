@@ -1,4 +1,4 @@
-# kiln
+# Kiln
 
 Scaffold an Angular workspace that holds **multiple applications** and a **shared library**. Applications live in `apps/`, shared code lives in `libs/`, and the toolchain is the Angular CLI.
 
@@ -47,7 +47,9 @@ npm install
 npm start
 ```
 
-`npm start` serves the first app at http://localhost:4200 and compiles library TypeScript and styles with that app. A second app is `npm run start:admin` (port 4201). `npm run lint` lints every library and application.
+`npm start` serves the first app at http://localhost:4200 and compiles library TypeScript and styles with that app. A second app is `npm run start:admin` (port 4201).
+
+`npm run serve` lists the applications and serves the one you choose (or serves the only app immediately). `npm run build -- web:production` builds an app with a configuration read from `angular.json`. With no argument, `npm run build` prompts for the app and configuration. `npm run build:all` builds every application. `npm run lint` prompts for a project to lint (or `npm run lint -- web` lints one directly). `npm run lint:all` lints every library and application.
 
 ## Add another app or library
 

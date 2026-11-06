@@ -11,13 +11,13 @@ const bin = new URL("../bin/kiln.mjs", import.meta.url);
 
 function scaffold(extra = {}) {
   return scaffoldWorkspace(
-    {
-      name: "acme",
-      apps: ["web", "admin"],
-      library: "shared",
-      ...extra,
-    },
-    { coreSource },
+      {
+        name: "acme",
+        apps: ["web", "admin"],
+        library: "shared",
+        ...extra,
+      },
+      { coreSource },
   );
 }
 
@@ -53,9 +53,16 @@ describe("scaffoldWorkspace", () => {
     assert.match(files["libs/shared/package.json"], /"name": "@acme\/shared"/);
     assert.equal(pkg.scripts.start, "ng serve web");
     assert.equal(pkg.scripts["start:admin"], "ng serve admin --port 4201");
-    assert.equal(pkg.scripts.build, "ng build web && ng build admin");
+    assert.equal(pkg.scripts.build, "node scripts/build.mjs");
+    assert.equal(pkg.scripts["build:all"], "ng build web && ng build admin");
+    assert.equal(pkg.scripts.lint, "node scripts/lint.mjs");
+    assert.equal(pkg.scripts["lint:all"], "ng lint shared && ng lint web && ng lint admin");
+    assert.equal(pkg.scripts.serve, "node scripts/serve.mjs");
     assert.equal(pkg.scripts.test, "ng test");
     assert.doesNotMatch(pkg.scripts.start, /ng build shared/);
+    assert.ok(files["scripts/build.mjs"]);
+    assert.ok(files["scripts/lint.mjs"]);
+    assert.ok(files["scripts/serve.mjs"]);
     assert.deepEqual(angular.projects.web.architect.serve.configurations.development.prebundle, {
       exclude: ["@acme/shared"],
     });
@@ -163,7 +170,8 @@ describe("scaffoldWorkspace", () => {
     const tsconfig = JSON.parse(withApp.files["tsconfig.json"]);
     assert.equal(angular.projects.portal.root, "apps/portal");
     assert.match(withApp.files["apps/portal/src/app/app.ts"], /from '@acme\/shared'/);
-    assert.match(pkg.scripts.build, /ng build portal/);
+    assert.equal(pkg.scripts.build, "node scripts/build.mjs");
+    assert.equal(pkg.scripts["start:portal"], "ng serve portal --port 4202");
     assert.equal(pkg.kiln.apps.at(-1), "portal");
     assert.match(withApp.files["apps/portal/src/tailwind.css"], /for the portal application/);
     assert.match(withApp.files["apps/portal/src/tailwind.css"], /source\(none\)/);
@@ -171,7 +179,7 @@ describe("scaffoldWorkspace", () => {
     assert.match(withApp.files["apps/portal/eslint.config.js"], /the portal application only/);
     assert.match(withApp.files["apps/portal/eslint.config.js"], /prefix: 'app'/);
     assert.equal(angular.projects.portal.architect.lint.options.eslintConfig, "apps/portal/eslint.config.js");
-    assert.match(pkg.scripts.lint, /ng lint portal/);
+    assert.equal(pkg.scripts.lint, "node scripts/lint.mjs");
     assert.equal(pkg.devDependencies["angular-eslint"], "^22.6.0");
     assert.equal(pkg.dependencies["@angular/material"], "~22.2.4");
     assert.ok(tsconfig.references.some((item) => item.path === "./apps/portal/tsconfig.app.json"));
@@ -181,36 +189,37 @@ describe("scaffoldWorkspace", () => {
     });
 
     const withLib = addLibrary(
-      {
-        "angular.json": withApp.files["angular.json"],
-        "package.json": withApp.files["package.json"],
-        "tsconfig.json": withApp.files["tsconfig.json"],
-      },
-      "ui",
+        {
+          "angular.json": withApp.files["angular.json"],
+          "package.json": withApp.files["package.json"],
+          "tsconfig.json": withApp.files["tsconfig.json"],
+        },
+        "ui",
     );
     const libTs = JSON.parse(withLib.files["tsconfig.json"]);
     const libPkg = JSON.parse(withLib.files["package.json"]);
     assert.deepEqual(libTs.compilerOptions.paths["@acme/ui"], ["./libs/ui/src/public-api.ts"]);
     assert.equal(libPkg.scripts.start, "ng serve web");
-    assert.equal(libPkg.scripts["build:ui"], "ng build ui");
+    assert.equal(libPkg.scripts["watch:ui"], "ng build ui --watch --configuration development");
+    assert.equal(libPkg.scripts["build:ui"], undefined);
     assert.doesNotMatch(libPkg.scripts.start, /ng build ui/);
     const libAngular = JSON.parse(withLib.files["angular.json"]);
     assert.deepEqual(libAngular.projects.web.architect.serve.configurations.development.prebundle, {
       exclude: ["@acme/shared", "@acme/ui"],
     });
     assert.deepEqual(
-      libAngular.projects.portal.architect.serve.configurations.development.prebundle,
-      { exclude: ["@acme/shared", "@acme/ui"] },
+        libAngular.projects.portal.architect.serve.configurations.development.prebundle,
+        { exclude: ["@acme/shared", "@acme/ui"] },
     );
     assert.match(withLib.files["libs/ui/src/public-api.ts"], /export \* from '\.\/lib\/ui'/);
     assert.match(withLib.files["libs/ui/eslint.config.js"], /the ui library only/);
     assert.match(withLib.files["libs/ui/eslint.config.js"], /prefix: 'lib'/);
     assert.equal(
-      JSON.parse(withLib.files["angular.json"]).projects.ui.architect.lint.options.eslintConfig,
-      "libs/ui/eslint.config.js",
+        JSON.parse(withLib.files["angular.json"]).projects.ui.architect.lint.options.eslintConfig,
+        "libs/ui/eslint.config.js",
     );
-    assert.match(libPkg.scripts.lint, /ng lint ui &&/);
-    assert.equal(libPkg.scripts["lint:ui"], "ng lint ui");
+    assert.equal(libPkg.scripts.lint, "node scripts/lint.mjs");
+    assert.equal(libPkg.scripts["lint:ui"], undefined);
     assert.throws(() => addApplication(existing, "web"), /already exists/);
   });
 });
@@ -221,9 +230,9 @@ describe("cli", () => {
     const directory = join(parent, "acme");
     try {
       const created = spawnSync(
-        process.execPath,
-        [bin.pathname, "acme", "--apps", "web,admin", "--directory", directory, "--skip-git"],
-        { encoding: "utf8" },
+          process.execPath,
+          [bin.pathname, "acme", "--apps", "web,admin", "--directory", directory, "--skip-git"],
+          { encoding: "utf8" },
       );
       assert.equal(created.status, 0, created.stderr);
       assert.match(readFileSync(join(directory, "apps/admin/src/app/app.ts"), "utf8"), /@acme\/shared/);

@@ -1,6 +1,6 @@
 {
   "name": "@codeauradev/kiln",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Scaffold an Angular workspace with multiple apps and a shared library. Angular CLI only.",
   "homepage": "https://kiln.codeaura.dev",
   "keywords": [
